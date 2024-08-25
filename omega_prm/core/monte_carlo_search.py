@@ -1,8 +1,7 @@
 import random
 import math
 from typing import Dict, Any
-
-class MonteCarloTreeSearch:
+class MonteCarloTreeSearch():
     def __init__(self, c_puct=0.125, alpha=0.5, beta=0.9):
         # initialize parameters for MCTS
         self.c_puct = c_puct
