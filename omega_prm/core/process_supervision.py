@@ -7,24 +7,28 @@ from .model_manager import OmegaPRM
 
 class ProcessSupervision(MonteCarloTreeSearch, OmegaPRM):
     def __init__(self, model_name="OuteAI/Lite-Mistral-150M-v2-Instruct", c_puct=0.125, alpha=0.5, beta=0.9, L=500):
-          # Initialize MonteCarloTreeSearch
+          # initialize MonteCarloTreeSearch
           MonteCarloTreeSearch.__init__(self, c_puct=c_puct, alpha=alpha, beta=beta)
           
-          # Initialize OmegaPRM
+          # initialize OmegaPRM
           OmegaPRM.__init__(self, model_name=model_name, c_puct=c_puct, alpha=alpha, beta=beta, L=L)
         
     def collect_process_supervision(self, question: str, golden_answer: str, search_limit: int = 100) -> List[Dict[str, Any]]:
-        # dollect process supervision signals
+        # collect process supervision signals
         root = self._create_root_node(question)
         annotations = []
 
-        # Add tqdm progress bar to the loop
+        # add tqdm progress bar to the loop
         for _ in tqdm(range(search_limit), desc="Collecting Process Supervision"):
             leaf = self._select(root)
+            print("leaf now: ", leaf)
+            #check the leaf
             value = self._evaluate(leaf)
+            # print("value outputten: ", value)
             self._backpropagate(leaf, value)
 
             if self._is_terminal(leaf):
+                print("THE LEAF: ", leaf)
                 annotations.extend(self._extract_annotations(leaf))
                 if len(annotations) >= search_limit:
                     break
@@ -62,13 +66,23 @@ class ProcessSupervision(MonteCarloTreeSearch, OmegaPRM):
 
     def _evaluate_step_correctness(self, step: str) -> float:
         # evaluate the correctness of a given step
-        # TODO: implement a better way to evaluate step correctness
-        prompt = f"On a scale of 0 to 1, how correct does this step in a math solution seem? , just output a number'{step}'"
-        response = self.generate_response(prompt)
-        try:
-            return float(response.strip())
-        except ValueError:
-            print("WARNING: Random answer generated: ", "for this step: ", step)
+        prompt = f"On a scale of 0 to 1, how correct does this step in a math solution seem? Just output a number: '{step}'"
+        response = self.generate_response(prompt).strip()
+        # print("evalute response: ", response)
+        # regular expression to extract a number from the response
+        number_pattern = re.compile(r'[-+]?\d*\.\d+|\d+', re.IGNORECASE)
+        match = number_pattern.search(response)
+        
+        if match:
+            try:
+                number = float(match.group())
+                return min(max(number, 0.0), 1.0)
+            except ValueError:
+                print("WARNING: Error converting response to float. Response was:", response)
+                return random.uniform(0, 1)
+        else:
+            # Fallback if no number is found
+            print("WARNING: No numeric value found in response. Response was:", response)
             return random.uniform(0, 1)
 
     def _generate_next_steps(self, state: str) -> List[str]:
