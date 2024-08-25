@@ -1,9 +1,18 @@
 from typing import List, Dict, Any
 import re
-import tqdm
+from tqdm import tqdm
 import random
+from .monte_carlo_search import MonteCarloTreeSearch
+from .model_manager import OmegaPRM
 
-class ProcessSupervision:
+class ProcessSupervision(MonteCarloTreeSearch, OmegaPRM):
+    def __init__(self, model_name="OuteAI/Lite-Mistral-150M-v2-Instruct", c_puct=0.125, alpha=0.5, beta=0.9, L=500):
+          # Initialize MonteCarloTreeSearch
+          MonteCarloTreeSearch.__init__(self, c_puct=c_puct, alpha=alpha, beta=beta)
+          
+          # Initialize OmegaPRM
+          OmegaPRM.__init__(self, model_name=model_name, c_puct=c_puct, alpha=alpha, beta=beta, L=L)
+        
     def collect_process_supervision(self, question: str, golden_answer: str, search_limit: int = 100) -> List[Dict[str, Any]]:
         # dollect process supervision signals
         root = self._create_root_node(question)
